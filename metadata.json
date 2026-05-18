@@ -1,0 +1,6 @@
+{
+  "name": "GROK'S TREASURE MAP: Deployment Logbook",
+  "description": "A step-by-step deployment orchestrator for a local-first edge-AI sovereign swarm.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
