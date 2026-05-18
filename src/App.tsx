@@ -21,9 +21,18 @@ const Tooltip = ({ title, content, children }: { title: string, content: string,
   </div>
 );
 
-const TerminalParser = ({ onSendToMate }: { onSendToMate: (text: string) => void }) => {
+const TerminalParser = ({ onSendToMate, onErrorDetected }: { onSendToMate: (text: string) => void, onErrorDetected?: (hasError: boolean) => void }) => {
   const [input, setInput] = useState("");
   const cleanANSI = (str: string) => str.replace(/[\u001b\u009b][[()#;?]*(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d]*)*)?\u0007/g, "");
+  
+  useEffect(() => {
+    if (onErrorDetected) {
+      const lower = cleanANSI(input).toLowerCase();
+      const hasError = lower.includes("error") || lower.includes("fail") || lower.includes("not found");
+      onErrorDetected(hasError);
+    }
+  }, [input, onErrorDetected]);
+
   const highlightedText = (text: string) => {
     return text.split("\n").map((line, i) => {
       const lower = line.toLowerCase();
@@ -39,7 +48,7 @@ const TerminalParser = ({ onSendToMate }: { onSendToMate: (text: string) => void
   return (
     <div className="bg-black p-4 mt-6 blocky-border border-amber-900/50">
       <label className="text-xs uppercase text-amber-500 mb-2 font-bold flex items-center justify-between">
-        <span>Paste Terminal Output Here</span>
+        <span>Paste Script / Terminal Output Here</span>
       </label>
       <textarea
         value={input}
@@ -53,11 +62,10 @@ const TerminalParser = ({ onSendToMate }: { onSendToMate: (text: string) => void
           onClick={() => {
             const cleaned = cleanANSI(input);
             onSendToMate(cleaned);
-            setInput("");
           }}
           className="bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 text-xs font-bold uppercase transition-colors flex items-center gap-2"
         >
-          <MessageSquare size={14} /> Send to First Mate
+          <MessageSquare size={14} /> Send to First Mate for Help
         </button>
       </div>
       {input && (
@@ -226,6 +234,10 @@ export default function App() {
   
   const [phaseVideoUrls, setPhaseVideoUrls] = useState<Record<number, string>>({});
   const [phaseVideoStatus, setPhaseVideoStatus] = useState<Record<number, "idle" | "generating" | "done">>({});
+  
+  const [fifthGraderMode, setFifthGraderMode] = useState(false);
+  const [phaseErrors, setPhaseErrors] = useState<Record<number, boolean>>({});
+  const [phaseCompleted, setPhaseCompleted] = useState<Record<number, boolean>>({});
   
   // Live Voice tracking refs
   const liveWsRef = useRef<WebSocket | null>(null);
@@ -546,50 +558,33 @@ export default function App() {
         </div>
       </header>
 
+      <div className="flex flex-col md:flex-row justify-between items-center bg-black blocky-border border-zinc-700 w-full mb-6 p-2 gap-4 shadow-[inset_0_4px_8px_rgba(0,0,0,0.8)] overflow-x-auto retro-scrollbar">
+         <div className="flex items-center gap-2">
+            {PHASES.map((phase, idx) => (
+              <button
+                key={phase.id}
+                onClick={() => setPhaseIndex(idx)}
+                disabled={!phaseCompleted[idx - 1] && idx > 0 && idx > phaseIndex}
+                className={`whitespace-nowrap px-4 py-2 text-xs font-bold uppercase transition-all flex items-center gap-2 ${idx === phaseIndex ? 'bg-amber-500 text-black border-2 border-amber-200 shadow-[4px_4px_0_0_#92400e]' : phaseCompleted[idx] ? 'bg-zinc-800 text-amber-500 border-2 border-zinc-600 hover:bg-zinc-700' : 'bg-transparent text-zinc-600 border-2 border-transparent'}`}
+                title={!phaseCompleted[idx - 1] && idx > 0 && idx > phaseIndex ? "Complete previous phases to unlock" : phase.title}
+              >
+                {idx < phaseIndex || phaseCompleted[idx] ? <ClipboardCheck size={14}/> : <ChevronRight size={14}/>}
+                Phase {phase.id}
+              </button>
+            ))}
+         </div>
+         <button
+            onClick={() => setFifthGraderMode(p => !p)}
+            className={`px-4 py-2 text-xs font-bold uppercase transition-all blocky-border whitespace-nowrap flex items-center gap-2 ${fifthGraderMode ? 'bg-green-500 text-black border-green-200 shadow-[2px_2px_0_0_#166534]' : 'bg-zinc-900 text-zinc-400 border-zinc-700'}`}
+         >
+            <BrainCircuit size={16} /> 5th Grader Mode {fifthGraderMode ? "ON" : "OFF"}
+         </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
         
         <div className="lg:col-span-8 flex flex-col gap-8">
           
-          <div className="bg-zinc-900/50 p-6 blocky-border border-zinc-800 relative overflow-hidden shadow-lg">
-            <div className="absolute left-0 top-0 w-2 h-full bg-gradient-to-b from-amber-500 to-transparent opacity-20"></div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-sm font-bold uppercase text-zinc-500 flex items-center gap-2 tracking-widest bg-black px-2 py-1 blocky-border border-zinc-700">
-                <MapIcon size={16} /> Voyage Progress
-              </h2>
-              <span className="text-sm font-bold text-black tracking-widest bg-amber-500 px-3 py-1 border-2 border-amber-200 shadow-[4px_4px_0_0_#92400e]">PHASE {phaseIndex + 1} OF 7</span>
-            </div>
-            <div className="relative h-6 bg-black blocky-border border-zinc-700 mb-8 overflow-hidden shadow-[inset_0_4px_8px_rgba(0,0,0,0.8)] p-1">
-               <motion.div 
-                 className="absolute left-1 top-1 bottom-1 bg-amber-500 animate-[breathing_3s_ease-in-out_infinite]"
-                 initial={{ width: 0 }}
-                 animate={{ width: `calc(${((phaseIndex + 1) / 7) * 100}% - 8px)` }}
-               >
-                 <div className="w-full h-full bg-[linear-gradient(45deg,rgba(0,0,0,0.2)25%,transparent_25%,transparent_50%,rgba(0,0,0,0.2)50%,rgba(0,0,0,0.2)75%,transparent_75%,transparent)] [background-size:20px_20px]"></div>
-               </motion.div>
-               <div className="absolute inset-1 flex justify-between z-10 pointer-events-none">
-                 {[...Array(7)].map((_, i) => (
-                   <div key={i} className={`w-1 h-full ${i < phaseIndex ? 'bg-black/50' : 'bg-transparent border-l border-zinc-800/80'}`} />
-                 ))}
-               </div>
-            </div>
-            <div className="flex justify-between relative z-10">
-              <button 
-                onClick={() => setPhaseIndex(p => Math.max(0, p - 1))}
-                disabled={phaseIndex === 0}
-                className="flex items-center gap-2 text-xs font-bold uppercase disabled:opacity-20 hover:text-amber-400 bg-zinc-950 px-4 py-2 border-2 border-zinc-800 transition-all hover:border-amber-500 shadow-[4px_4px_0_0_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-none disabled:active:translate-y-0 disabled:shadow-none"
-              >
-                <ChevronLeft size={16} /> Retreat
-              </button>
-              <button 
-                onClick={() => setPhaseIndex(p => Math.min(PHASES.length - 1, p + 1))}
-                disabled={phaseIndex === PHASES.length - 1}
-                className="flex items-center gap-2 text-xs font-bold uppercase disabled:opacity-20 hover:text-amber-400 bg-zinc-950 px-4 py-2 border-2 border-zinc-800 transition-all hover:border-amber-500 shadow-[4px_4px_0_0_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-none disabled:active:translate-y-0 disabled:shadow-none"
-              >
-                Advance <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-
           <AnimatePresence mode="wait">
             <motion.div
               key={phaseIndex}
@@ -616,10 +611,25 @@ export default function App() {
                 </div>
               )}
 
-              <p className="text-lg md:text-xl font-serif italic text-amber-100/90 mb-10 border-l-8 border-amber-600 pl-6 py-4 bg-gradient-to-r from-amber-900/50 to-transparent leading-relaxed drop-shadow-sm relative shadow-inner">
-                <span className="text-6xl absolute -top-4 -left-4 text-amber-700/50 select-none font-sans">"</span>
-                {currentPhase.narrative}
-              </p>
+              {fifthGraderMode ? (
+                 <div className="mb-10 space-y-4">
+                    <div className="bg-green-950/40 p-6 border-l-8 border-green-500 blocky-border border-r-2 border-y-2 border-zinc-800 text-green-100 text-lg md:text-xl font-bold leading-relaxed shadow-[inset_0_4px_10px_rgba(0,0,0,0.5)]">
+                       <h4 className="text-green-500 text-sm uppercase tracking-widest mb-2 flex items-center gap-2"><BrainCircuit size={16} /> Pre-Deployment Briefing</h4>
+                       {currentPhase.fifthGraderBriefing}
+                    </div>
+                    {phaseCompleted[phaseIndex] && (
+                       <div className="bg-sky-950/40 p-6 border-l-8 border-sky-500 blocky-border border-r-2 border-y-2 border-zinc-800 text-sky-100 text-lg md:text-xl font-bold leading-relaxed shadow-[inset_0_4px_10px_rgba(0,0,0,0.5)] mt-4">
+                          <h4 className="text-sky-500 text-sm uppercase tracking-widest mb-2 flex items-center gap-2"><ClipboardCheck size={16} /> Post-Deployment Summary</h4>
+                          {currentPhase.fifthGraderSummary}
+                       </div>
+                    )}
+                 </div>
+              ) : (
+                <p className="text-lg md:text-xl font-serif italic text-amber-100/90 mb-10 border-l-8 border-amber-600 pl-6 py-4 bg-gradient-to-r from-amber-900/50 to-transparent leading-relaxed drop-shadow-sm relative shadow-inner">
+                  <span className="text-6xl absolute -top-4 -left-4 text-amber-700/50 select-none font-sans">"</span>
+                  {currentPhase.narrative}
+                </p>
+              )}
 
               <div className="flex flex-col gap-4 mb-10">
                 <button
@@ -714,6 +724,88 @@ export default function App() {
                 </div>
               </div>
 
+              <TerminalParser 
+                 onSendToMate={(text) => handleSendMessage(`[TERMINAL OUTPUT LOG PARSED]\n${text}`, false, null, null)}
+                 onErrorDetected={(hasErr) => setPhaseErrors(prev => ({ ...prev, [phaseIndex]: hasErr }))}
+              />
+              
+              <div className="mt-8 pt-6 border-t-2 border-zinc-800">
+                 <label className="text-xs uppercase text-amber-500 mb-2 font-bold flex items-center gap-2">
+                    <MessageSquare size={14}/> Ask Grok (Interactive Q&A)
+                 </label>
+                 <div className="flex gap-2">
+                    <input 
+                       type="text" 
+                       id={`qa-input-${phaseIndex}`}
+                       disabled={chatLoading}
+                       placeholder={fifthGraderMode ? "Ask a question (5th Grader style)..." : "Query the Swarm Admiral..."}
+                       className="flex-1 bg-black text-amber-100 p-3 blocky-border border-zinc-600 focus:outline-none focus:border-amber-500"
+                       onKeyDown={(e) => {
+                          if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                             const query = e.currentTarget.value;
+                             const context = fifthGraderMode ? "Explain this simply, like I'm a 5th grader. Keep it super easy to understand and nice." : null;
+                             handleSendMessage(`[USER QUESTION - PHASE ${phaseIndex + 1}]: ${query}`, false, null, context);
+                             e.currentTarget.value = '';
+                          }
+                       }}
+                    />
+                    <button 
+                       onClick={() => {
+                          const inputNode = document.getElementById(`qa-input-${phaseIndex}`) as HTMLInputElement;
+                          if (inputNode && inputNode.value.trim()) {
+                             const query = inputNode.value;
+                             const context = fifthGraderMode ? "Explain this simply, like I'm a 5th grader. Keep it super easy to understand and nice." : null;
+                             handleSendMessage(`[USER QUESTION - PHASE ${phaseIndex + 1}]: ${query}`, false, null, context);
+                             inputNode.value = '';
+                          }
+                       }}
+                       disabled={chatLoading}
+                       className="bg-amber-600 hover:bg-amber-500 text-black px-6 py-3 font-bold uppercase transition-colors"
+                    >
+                       Ask
+                    </button>
+                 </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 pt-6 border-t-2 border-zinc-800">
+                  <button
+                    onClick={() => {
+                        setPhaseCompleted(prev => ({ ...prev, [phaseIndex]: false }));
+                    }}
+                    className="w-full sm:w-auto px-6 py-3 bg-red-950 text-red-500 font-bold uppercase tracking-widest blocky-border border-red-900 hover:bg-red-900 hover:text-white transition-colors"
+                  >
+                     Abort Phase
+                  </button>
+                  <div className="flex gap-4 w-full sm:w-auto flex-col sm:flex-row">
+                     <button
+                        onClick={() => {
+                           const newCompleted = { ...phaseCompleted, [phaseIndex]: true };
+                           setPhaseCompleted(newCompleted);
+                           // simulate doing all, jump to the end
+                           let compUpdates = { ...newCompleted };
+                           for (let i = phaseIndex; i < PHASES.length; i++) compUpdates[i] = true;
+                           setPhaseCompleted(compUpdates);
+                           setPhaseIndex(PHASES.length - 1);
+                        }}
+                        disabled={phaseErrors[phaseIndex]}
+                        className="flex-1 sm:flex-none px-6 py-3 bg-emerald-700 text-black font-bold uppercase tracking-widest blocky-border shadow-[4px_4px_0_0_#064e3b] hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                     >
+                        Do All
+                     </button>
+                     <button
+                        onClick={() => {
+                           const newCompleted = { ...phaseCompleted, [phaseIndex]: true };
+                           setPhaseCompleted(newCompleted);
+                           if (phaseIndex < PHASES.length - 1) setPhaseIndex(p => p + 1);
+                        }}
+                        disabled={phaseErrors[phaseIndex]}
+                        className="flex-1 sm:flex-none px-6 py-3 bg-amber-500 text-black font-bold uppercase tracking-widest blocky-border shadow-[4px_4px_0_0_#92400e] hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                     >
+                        Next
+                     </button>
+                  </div>
+              </div>
+
               {phaseIndex === PHASES.length - 1 && (
                 <motion.div 
                   initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -795,8 +887,6 @@ export default function App() {
               )}
             </motion.div>
           </AnimatePresence>
-
-          <TerminalParser onSendToMate={(text) => handleSendMessage(`[TERMINAL OUTPUT LOG PARSED]\n${text}`, false, null, null)} />
         </div>
 
         <div className="lg:col-span-4 flex flex-col gap-8">

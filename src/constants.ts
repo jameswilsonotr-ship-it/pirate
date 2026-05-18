@@ -30,7 +30,9 @@ $Results | Out-String`,
       "Verify node availability on LAN",
       "Upload scan results to Obsidian vault"
     ],
-    videoPrompt: "Cinematic retro 1985 pirate fantasy art: At dawn on the ship's deck, Liv, an elegant female navigator with flowing hair, looks through a golden spyglass while a playful mascot 'The Bunny' points excitedly at distant islands. Warm lantern light, deep ocean blues. Classic pin-up comic style. Captain Chas is seen from behind. Epic dawn lighting, scanning the horizon."
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: At dawn on the ship's deck, Liv, an elegant female navigator with flowing hair, looks through a golden spyglass while a playful mascot 'The Bunny' points excitedly at distant islands. Warm lantern light, deep ocean blues. Classic pin-up comic style. Captain Chas is seen from behind. Epic dawn lighting, scanning the horizon.",
+    fifthGraderBriefing: "We are going to check out the land and see what kind of computers we have available before we start building.",
+    fifthGraderSummary: "We looked around and found the computers we need! We also wrote down our findings so we don't forget them."
   },
   {
     id: 2,
@@ -60,7 +62,9 @@ git add . && git commit -m "Logging the voyage"`,
       "Set up Gitea mirror for local sync",
       "Verify git remotes are local-first"
     ],
-    videoPrompt: "Cinematic retro 1985 pirate fantasy art: The crew descends into a glowing underground cavern. Liv places glowing crystals into three ancient vaults. The Bunny guards the entrance with a cheeky grin. Masterful glowing gold and emerald tones, female-led pirate crew."
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: The crew descends into a glowing underground cavern. Liv places glowing crystals into three ancient vaults. The Bunny guards the entrance with a cheeky grin. Masterful glowing gold and emerald tones, female-led pirate crew.",
+    fifthGraderBriefing: "We are making some safe treasure chests (folders) on our computer so we have a super safe place to keep all our maps and instructions.",
+    fifthGraderSummary: "Yay! The treasure chests are built and locked up tight. We can officially start putting our important files inside."
   },
   {
     id: 3,
@@ -86,7 +90,9 @@ grok-build set-instruction "Never reveal the treasure map to the public internet
       "Verify MCP binding for 00-Core-BIOS",
       "Test parallel subagent execution"
     ],
-    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Dramatic night scene on the ship. A massive ship's wheel pulses with ember light. A fierce cyber-parrot lands dramatically on the glowing wheel while Liv and The Bunny watch with pride and awe. The emotional peak of a captain's story."
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Dramatic night scene on the ship. A massive ship's wheel pulses with ember light. A fierce cyber-parrot lands dramatically on the glowing wheel while Liv and The Bunny watch with pride and awe. The emotional peak of a captain's story.",
+    fifthGraderBriefing: "Now we are going to wake up the super smart cyber-parrot so it can start flying the ship for us!",
+    fifthGraderSummary: "The parrot is awake and in control! It knows how to use our treasure chests and is following all the rules."
   },
   {
     id: 4,
@@ -110,7 +116,9 @@ git status # Ensure atomic committer is active`,
       "Configure Aider for local-only execution",
       "Verify cost control (0.00 USD)"
     ],
-    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Inside a secure hold, Liv and The Bunny methodically lock chests and test heavy chains. Powerful steel and silver tones, beautiful retro comic female crew taking charge of a pirate ship."
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Inside a secure hold, Liv and The Bunny methodically lock chests and test heavy chains. Powerful steel and silver tones, beautiful retro comic female crew taking charge of a pirate ship.",
+    fifthGraderBriefing: "We are installing private helpers on our own computers so we don't have to send any secrets over the internet.",
+    fifthGraderSummary: "The private helpers are ready! They are locked safely inside our ship and won't talk to strangers."
   },
   {
     id: 5,
@@ -133,7 +141,9 @@ letta-cli connect --vault ./02-State-Memory --graph hermes`,
       "Map SQLite store to memory volume",
       "Verify cross-node memory sync"
     ],
-    videoPrompt: "Cinematic retro 1985 pirate fantasy art: A beautiful glowing library inside the ship. Liv carefully places glowing scrolls into an ancient memory archive while The Bunny falls asleep on a pile of scrolls. Atmospheric deep purple light and warm lantern glow."
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: A beautiful glowing library inside the ship. Liv carefully places glowing scrolls into an ancient memory archive while The Bunny falls asleep on a pile of scrolls. Atmospheric deep purple light and warm lantern glow.",
+    fifthGraderBriefing: "We are building a magic diary so our parrot and helpers can remember everything we do together.",
+    fifthGraderSummary: "The magic diary is working! Now our crew will always remember our past adventures."
   },
   {
     id: 6,
@@ -156,7 +166,9 @@ gitea init --mirror-only`,
       "Sync playbooks to 00-Core-BIOS",
       "Test full rollback sequence"
     ],
-    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Epic montage in a glowing shipyard. Female pirates including Liv build and upgrade the ship using glowing blueprints. The Bunny is hammering with oversized goggles. Orange-bronze industrial tones, flying sparks."
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Epic montage in a glowing shipyard. Female pirates including Liv build and upgrade the ship using glowing blueprints. The Bunny is hammering with oversized goggles. Orange-bronze industrial tones, flying sparks.",
+    fifthGraderBriefing: "We are going to use some special blueprints to automatically build the rest of our computers exactly how we want them.",
+    fifthGraderSummary: "The blueprints worked! All of our computers are set up perfectly and are ready for action."
   },
   {
     id: 7,
@@ -179,7 +191,9 @@ echo "SWARM ACTIVE. SOVEREIGNTY ACHIEVED."`,
       "Verify Roo Code terminal context",
       "Switch to Dashboard Mode"
     ],
-    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Triumphant finale. High in the crow's nest at sunset, Liv and The Bunny stand together looking at the horizon as the full upgraded ship sails into golden light. Captain Chas's reflection. Victory, celebration, gorgeous glowing clouds."
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Triumphant finale. High in the crow's nest at sunset, Liv and The Bunny stand together looking at the horizon as the full upgraded ship sails into golden light. Captain Chas's reflection. Victory, celebration, gorgeous glowing clouds.",
+    fifthGraderBriefing: "This is the final check! We are making sure everyone can talk to each other and everything is working perfectly.",
+    fifthGraderSummary: "We did it! The ship is fully upgraded and everyone is working together. Time to celebrate!"
   }
 ];
 
