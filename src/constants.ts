@@ -29,7 +29,8 @@ $Results | Out-String`,
       "Confirm WSL2 Debian instance is active",
       "Verify node availability on LAN",
       "Upload scan results to Obsidian vault"
-    ]
+    ],
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: At dawn on the ship's deck, Liv, an elegant female navigator with flowing hair, looks through a golden spyglass while a playful mascot 'The Bunny' points excitedly at distant islands. Warm lantern light, deep ocean blues. Classic pin-up comic style. Captain Chas is seen from behind. Epic dawn lighting, scanning the horizon."
   },
   {
     id: 2,
@@ -58,7 +59,8 @@ git add . && git commit -m "Logging the voyage"`,
       "Configure Obsidian for 3-vault layout",
       "Set up Gitea mirror for local sync",
       "Verify git remotes are local-first"
-    ]
+    ],
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: The crew descends into a glowing underground cavern. Liv places glowing crystals into three ancient vaults. The Bunny guards the entrance with a cheeky grin. Masterful glowing gold and emerald tones, female-led pirate crew."
   },
   {
     id: 3,
@@ -83,7 +85,8 @@ grok-build set-instruction "Never reveal the treasure map to the public internet
       "Install Grok Build CLI on WSL2",
       "Verify MCP binding for 00-Core-BIOS",
       "Test parallel subagent execution"
-    ]
+    ],
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Dramatic night scene on the ship. A massive ship's wheel pulses with ember light. A fierce cyber-parrot lands dramatically on the glowing wheel while Liv and The Bunny watch with pride and awe. The emotional peak of a captain's story."
   },
   {
     id: 4,
@@ -106,7 +109,8 @@ git status # Ensure atomic committer is active`,
       "Pull Hermes-3 model to Ollama",
       "Configure Aider for local-only execution",
       "Verify cost control (0.00 USD)"
-    ]
+    ],
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Inside a secure hold, Liv and The Bunny methodically lock chests and test heavy chains. Powerful steel and silver tones, beautiful retro comic female crew taking charge of a pirate ship."
   },
   {
     id: 5,
@@ -128,7 +132,8 @@ letta-cli connect --vault ./02-State-Memory --graph hermes`,
       "Initialize Letta Server container",
       "Map SQLite store to memory volume",
       "Verify cross-node memory sync"
-    ]
+    ],
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: A beautiful glowing library inside the ship. Liv carefully places glowing scrolls into an ancient memory archive while The Bunny falls asleep on a pile of scrolls. Atmospheric deep purple light and warm lantern glow."
   },
   {
     id: 6,
@@ -150,7 +155,8 @@ gitea init --mirror-only`,
       "Generate Nix flakes for HP Elite Mini G9",
       "Sync playbooks to 00-Core-BIOS",
       "Test full rollback sequence"
-    ]
+    ],
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Epic montage in a glowing shipyard. Female pirates including Liv build and upgrade the ship using glowing blueprints. The Bunny is hammering with oversized goggles. Orange-bronze industrial tones, flying sparks."
   },
   {
     id: 7,
@@ -172,7 +178,8 @@ echo "SWARM ACTIVE. SOVEREIGNTY ACHIEVED."`,
       "Final voice integration check",
       "Verify Roo Code terminal context",
       "Switch to Dashboard Mode"
-    ]
+    ],
+    videoPrompt: "Cinematic retro 1985 pirate fantasy art: Triumphant finale. High in the crow's nest at sunset, Liv and The Bunny stand together looking at the horizon as the full upgraded ship sails into golden light. Captain Chas's reflection. Victory, celebration, gorgeous glowing clouds."
   }
 ];
 

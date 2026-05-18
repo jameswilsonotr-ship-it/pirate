@@ -219,9 +219,20 @@ export default function App() {
   
   const [chatHistory, setChatHistory] = useState<any[]>(() => JSON.parse(localStorage.getItem("grok_chat") || "[]"));
   const [isAudioOn, setIsAudioOn] = useState(false);
-  const [isParrotOn, setIsParrotOn] = useState(true);
+  const [isParrotOn, setIsParrotOn] = useState(false); // Default false, must actively connect
   const [chatLoading, setChatLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [musicLoading, setMusicLoading] = useState(false);
+  
+  const [phaseVideoUrls, setPhaseVideoUrls] = useState<Record<number, string>>({});
+  const [phaseVideoStatus, setPhaseVideoStatus] = useState<Record<number, "idle" | "generating" | "done">>({});
+  
+  // Live Voice tracking refs
+  const liveWsRef = useRef<WebSocket | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const nextStartTimeRef = useRef<number>(0);
+  const musicAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     localStorage.setItem("grok_phase", phaseIndex.toString());
@@ -249,6 +260,171 @@ export default function App() {
   const sharePhaseLog = () => {
     const text = `--- ${currentPhase.title} ---\n\n${currentPhase.narrative}\n\n[PAYLOAD]:\n${currentPhase.payload}`;
     copyToClipboard(text, `share-${phaseIndex}`);
+  };
+
+  const playAudioChunk = (base64Audio: string) => {
+    if (!audioCtxRef.current) return;
+    const ctx = audioCtxRef.current;
+    
+    // Decode Base64 to ArrayBuffer (PCM 16-bit 16kHz)
+    const binary = atob(base64Audio);
+    const buffer = new ArrayBuffer(binary.length);
+    const view = new Uint8Array(buffer);
+    for (let i = 0; i < binary.length; i++) {
+        view[i] = binary.charCodeAt(i);
+    }
+    
+    const int16Array = new Int16Array(buffer);
+    const float32Array = new Float32Array(int16Array.length);
+    for (let i = 0; i < int16Array.length; i++) {
+        float32Array[i] = int16Array[i] / 32768;
+    }
+    
+    const audioBuffer = ctx.createBuffer(1, float32Array.length, 24000); // 24kHz is what live API expects for TTS often, wait Live API output is 24kHz pcm.
+    audioBuffer.getChannelData(0).set(float32Array);
+    
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(ctx.destination);
+    
+    if (nextStartTimeRef.current < ctx.currentTime) {
+        nextStartTimeRef.current = ctx.currentTime + 0.05;
+    }
+    source.start(nextStartTimeRef.current);
+    nextStartTimeRef.current += audioBuffer.duration;
+  };
+
+  const toggleParrotLive = async () => {
+      if (isParrotOn) {
+          setIsParrotOn(false);
+          liveWsRef.current?.close();
+          streamRef.current?.getTracks().forEach(t => t.stop());
+          return;
+      }
+      setIsParrotOn(true);
+      
+      try {
+          // Fix URL for ws/wss depending on protocol
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const ws = new WebSocket(`${protocol}//${window.location.host}/live`);
+          liveWsRef.current = ws;
+          
+          const audioCtx = new AudioContext({ sampleRate: 16000 });
+          audioCtxRef.current = audioCtx;
+          nextStartTimeRef.current = 0;
+          
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          streamRef.current = stream;
+          const source = audioCtx.createMediaStreamSource(stream);
+          const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+          source.connect(processor);
+          processor.connect(audioCtx.destination);
+          
+          processor.onaudioprocess = (e) => {
+              if (ws.readyState !== WebSocket.OPEN) return;
+              const inputData = e.inputBuffer.getChannelData(0);
+              const pcm16 = new Int16Array(inputData.length);
+              for (let i = 0; i < inputData.length; i++) {
+                  let s = Math.max(-1, Math.min(1, inputData[i]));
+                  pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+              }
+              const buffer = pcm16.buffer;
+              let binary = '';
+              const bytes = new Uint8Array(buffer);
+              for (let i = 0; i < bytes.byteLength; i++) {
+                  binary += String.fromCharCode(bytes[i]);
+              }
+              ws.send(JSON.stringify({ audio: btoa(binary) }));
+          };
+          
+          ws.onmessage = (event) => {
+              const msg = JSON.parse(event.data);
+              if (msg.audio) {
+                  playAudioChunk(msg.audio);
+              }
+              if (msg.interrupted) {
+                  nextStartTimeRef.current = 0;
+              }
+          };
+      } catch (e) {
+          console.error("Live API setup failed:", e);
+          setIsParrotOn(false);
+      }
+  };
+
+  const toggleMusic = async () => {
+      if (isAudioOn) {
+          setIsAudioOn(false);
+          musicAudioRef.current?.pause();
+          return;
+      }
+      
+      if (musicAudioRef.current) {
+          setIsAudioOn(true);
+          musicAudioRef.current.play();
+          return;
+      }
+      
+      setMusicLoading(true);
+      try {
+          const res = await fetch("/api/music", { method: "POST" });
+          const data = await res.json();
+          if (data.audioBase64) {
+              const binary = atob(data.audioBase64);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+              }
+              const blob = new Blob([bytes], { type: data.mimeType || "audio/wav" });
+              const audio = new Audio(URL.createObjectURL(blob));
+              audio.loop = true;
+              musicAudioRef.current = audio;
+              audio.play();
+              setIsAudioOn(true);
+          }
+      } catch (e) {
+          console.error("Failed to generate music", e);
+      } finally {
+          setMusicLoading(false);
+      }
+  };
+
+  const generatePhaseVideo = async (phaseIdx: number) => {
+      setPhaseVideoStatus(prev => ({ ...prev, [phaseIdx]: "generating" }));
+      try {
+          const prompt = PHASES[phaseIdx].videoPrompt || "Cinematic epic victory video of a retro 1985 pirate ship sailing into the sunset.";
+          const res = await fetch("/api/video/start", { 
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ prompt })
+          });
+          const { operationName } = await res.json();
+          
+          const poll = async () => {
+              const statRes = await fetch("/api/video/status", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ operationName })
+              });
+              const { done } = await statRes.json();
+              if (done) {
+                  const downRes = await fetch("/api/video/download", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ operationName })
+                  });
+                  const blob = await downRes.blob();
+                  setPhaseVideoUrls(prev => ({ ...prev, [phaseIdx]: URL.createObjectURL(blob) }));
+                  setPhaseVideoStatus(prev => ({ ...prev, [phaseIdx]: "done" }));
+              } else {
+                  setTimeout(poll, 10000); // Check every 10s
+              }
+          };
+          poll();
+      } catch (e) {
+          console.error("Video fail", e);
+          setPhaseVideoStatus(prev => ({ ...prev, [phaseIdx]: "idle" }));
+      }
   };
 
   const handleSendMessage = async (msgText: string, deepDive: boolean, imageThumb: string | null = null, sysContext: string | null = null) => {
@@ -282,7 +458,15 @@ export default function App() {
         }),
       });
       const data = await response.json();
-      const updatedHistory = [...newHistory, { role: "model", parts: [{ text: data.text }] }];
+      const modelParts: any[] = [];
+      if (data.image) {
+         const mimeType = data.image.substring(5, data.image.indexOf(';'));
+         const base64Data = data.image.split(',')[1];
+         modelParts.push({ inlineData: { mimeType, data: base64Data } });
+      }
+      modelParts.push({ text: data.text });
+      
+      const updatedHistory = [...newHistory, { role: "model", parts: modelParts }];
       setChatHistory(updatedHistory);
       
       // Parse out details for speech so it doesn't read HTML tags
@@ -295,10 +479,7 @@ export default function App() {
     }
   };
 
-  const toggleAudio = () => {
-    const playing = audioService.toggle();
-    setIsAudioOn(playing);
-  };
+  const toggleAudio = toggleMusic;
 
   const resetProgress = () => {
     if (confirm("Captain, are you sure you want to abandon ship and restart the journey? Your LocalStorage will be flushed.")) {
@@ -330,11 +511,12 @@ export default function App() {
         <div className="flex gap-4 relative z-10">
           <button 
             onClick={toggleAudio}
+            disabled={musicLoading}
             className={`p-3 blocky-border flex items-center justify-center relative overflow-hidden group ${isAudioOn ? 'bg-amber-500 text-black border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-zinc-900 text-amber-600 border-zinc-700 hover:border-amber-700'}`}
             title="Compose Pirate Shanty"
           >
             {isAudioOn && <div className="absolute inset-0 bg-amber-200 opacity-20 group-hover:opacity-40 transition-opacity"></div>}
-            {isAudioOn ? <Music size={24} className="animate-pulse" /> : <Music size={24} />}
+            {musicLoading ? <div className="animate-spin flex items-center justify-center"><Music size={24} className="opacity-50"/></div> : (isAudioOn ? <Music size={24} className="animate-pulse" /> : <Music size={24} />)}
           </button>
           
           {/* Enhanced Live Voice HUD */}
@@ -346,11 +528,7 @@ export default function App() {
                 </>
              )}
              <button 
-               onClick={() => {
-                 const newState = !isParrotOn;
-                 setIsParrotOn(newState);
-                 speechService.setParrotEnabled(newState);
-               }}
+               onClick={toggleParrotLive}
                className={`p-3 blocky-border relative z-10 transition-colors ${isParrotOn ? 'bg-green-500 text-black border-green-200 shadow-[0_0_15px_rgba(34,197,94,0.6)]' : 'bg-zinc-900 text-sky-600 border-zinc-700'}`}
                title="Toggle Parrot Voice Ingestion"
              >
@@ -442,6 +620,22 @@ export default function App() {
                 <span className="text-6xl absolute -top-4 -left-4 text-amber-700/50 select-none font-sans">"</span>
                 {currentPhase.narrative}
               </p>
+
+              <div className="flex flex-col gap-4 mb-10">
+                <button
+                  onClick={() => generatePhaseVideo(phaseIndex)}
+                  disabled={phaseVideoStatus[phaseIndex] === "generating"}
+                  className="bg-black text-amber-400 border-amber-600 blocky-border px-6 py-3 font-bold uppercase tracking-widest hover:bg-amber-950 transition-colors self-start shadow-[4px_4px_0_0_rgba(217,119,6,0.6)] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {phaseVideoStatus[phaseIndex] === "generating" ? "Generating Cinematic Log..." : "Watch Voyage Log"}
+                </button>
+                {phaseVideoUrls[phaseIndex] && (
+                  <div className="w-full max-w-4xl blocky-border border-amber-500 p-2 bg-black shadow-2xl relative breathing-border">
+                    <video src={phaseVideoUrls[phaseIndex]} controls autoPlay loop muted className="w-full h-auto" />
+                    <div className="absolute top-4 left-4 bg-amber-500 text-black font-bold uppercase text-[10px] px-2 py-1">Cinematic Log - Phase {phaseIndex + 1}</div>
+                  </div>
+                )}
+              </div>
 
               <div className="relative group mb-10">
                 <div className="absolute right-3 top-3 z-10 flex gap-2">
@@ -578,7 +772,14 @@ export default function App() {
                        </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row justify-center gap-6 w-full max-w-2xl">
+                    <div className="flex flex-col sm:flex-row justify-center gap-6 w-full max-w-3xl mb-6">
+                      <button 
+                        onClick={() => generatePhaseVideo(phaseIndex)}
+                        disabled={phaseVideoStatus[phaseIndex] === "generating"}
+                        className="flex-1 bg-sky-900 text-sky-200 px-8 py-5 md:text-lg font-bold uppercase tracking-widest hover:bg-sky-800 hover:text-white transition-all blocky-border border-sky-400 shadow-[6px_6px_0_0_rgba(14,165,233,0.6)] active:translate-y-1 active:translate-x-1 active:shadow-none focus:outline-none focus:ring-4 focus:ring-sky-300 disabled:opacity-50"
+                      >
+                        {phaseVideoStatus[phaseIndex] === "generating" ? "Generating Epic Video (May take a few mins)..." : "Generate Epic Video"}
+                      </button>
                       <button className="flex-1 bg-black text-amber-500 px-8 py-5 md:text-lg font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all blocky-border border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.6)] active:translate-y-1 active:translate-x-1 active:shadow-none focus:outline-none focus:ring-4 focus:ring-amber-300">
                         Dashboard Mode
                       </button>
@@ -586,7 +787,7 @@ export default function App() {
                         onClick={resetProgress}
                         className="flex-1 bg-red-800 text-black border-black px-8 py-5 md:text-lg font-bold uppercase tracking-widest hover:bg-red-600 transition-all blocky-border shadow-[6px_6px_0_0_#450a0a] active:translate-y-1 active:translate-x-1 active:shadow-none focus:outline-none focus:ring-4 focus:ring-red-400"
                       >
-                        Redeploy / Reset Logs
+                        Reset / Redeploy
                       </button>
                     </div>
                   </div>
